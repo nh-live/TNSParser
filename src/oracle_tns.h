@@ -3,39 +3,6 @@
 
 #include "util.h"
 
-enum Pkt_type
-{
-    TNS_TYPE_CONNECT    = 1,
-    TNS_TYPE_ACCEPT,
-    TNS_TYPE_ACK,
-    TNS_TYPE_REFUSE,
-    TNS_TYPE_REDIRECT,
-    TNS_TYPE_DATA,
-    TNS_TYPE_NULL,
-    TNS_TYPE_UNKNOWN1,
-    TNS_TYPE_ABORT,
-    TNS_TYPE_UNKNOWN2,
-    TNS_TYPE_RESEND,
-    TNS_TYPE_MARKER,
-    TNS_TYPE_UNKNOWN3,
-    TNS_TYPE_UNKNOWN4    = 14,
-};
-
-enum Data_id
-{
-    TNS_DATA_ID_SNS    = 0xde, //secure network service
-    TNS_DATA_ID_SP     = 0x01, //set protocol
-    TNS_DATA_ID_OCI    = 0x03, //OCI function
-    TNS_DATA_ID_RS     = 0x04, //return status
-};
-enum error_code
-{
-    CODE_SUCCESS   = 0x00,
-    CODE_PKT_LEN   = 0x01,
-    CODE_PKT_TYPE  = 0x02,
-    CODE_DATA_ID   = 0x03,
-};
-
 //Relative to tns packet head : pkt
 #define TNS_HEAD_LEN            (8)
 #define OFFSET_TNS_LEN          (0)
@@ -80,7 +47,7 @@ enum error_code
 #define CONNECT_DATA(pkt)           ((uchar*)pkt + CONNECT_DATA_OFFSET(pkt))
 
 //Relative to tns packet data : PKT_DATA(pkt)
-#define ACCEPT_VER(pkt)             (NTOHS(*((ushort*))(PKT_DATA(pkt) + OFFSET_TNS_CONNECT_VERSION)))
+#define ACCEPT_VER(pkt)             (NTOHS(*(ushort*)(PKT_DATA(pkt) + OFFSET_TNS_CONNECT_VERSION)))
 #define ACCEPT_DATA_LEN(pkt)        (NTOHS(*(ushort*)(PKT_DATA(pkt) + OFFSET_TNS_ACCEPT_DATA_LEN)))
 #define ACCEPT_DATA_OFFSET(pkt)     (NTOHS(*(ushort*)(PKT_DATA(pkt) + OFFSET_TNS_ACCEPT_DATA_OFFSET)))
 #define ACCEPT_DATA(pkt)            ((uchar*)pkt + ACCEPT_DATA_OFFSET(pkt))
@@ -99,9 +66,60 @@ enum error_code
 
 //Relative to tns packet data data : DATA_DATA(pkt)
 
+
+enum Pkt_type
+{
+    TNS_TYPE_CONNECT    = 1,
+    TNS_TYPE_ACCEPT,
+    TNS_TYPE_ACK,
+    TNS_TYPE_REFUSE,
+    TNS_TYPE_REDIRECT,
+    TNS_TYPE_DATA,
+    TNS_TYPE_NULL,
+    TNS_TYPE_UNKNOWN1,
+    TNS_TYPE_ABORT,
+    TNS_TYPE_UNKNOWN2,
+    TNS_TYPE_RESEND,
+    TNS_TYPE_MARKER,
+    TNS_TYPE_UNKNOWN3,
+    TNS_TYPE_UNKNOWN4    = 14,
+};
+
+enum Data_id_ver313
+{
+    TNS313_DATA_ID_SNS    = 0xde, //secure network service
+    TNS313_DATA_ID_SP     = 0x01, //set protocol
+    TNS313_DATA_ID_OCI    = 0x03, //OCI function
+    TNS313_DATA_ID_RS     = 0x04, //return status
+};
+    
+enum Data_id_ver314
+{
+    TNS314_DATA_ID_SNS    = 0xde, //secure network service
+    TNS314_DATA_ID_SP     = 0x01, //set protocol
+    TNS314_DATA_ID_OCI    = 0x03, //OCI function
+    TNS314_DATA_ID_RS     = 0x04, //return status
+};
+
+
+enum Data_handle_version
+{
+    TNS_313 = 313,
+    TNS_314 = 314
+};
+
+enum error_code
+{
+    CODE_SUCCESS   = 0x00,
+    CODE_PKT_LEN   = 0x01,
+    CODE_PKT_TYPE  = 0x02,
+    CODE_DATA_ID   = 0x03,
+};
+
 struct Pkt_handle
 {
-    uchar type;
+    ushort  version;
+    uchar   type;
     int (*func)(uchar*, uint, void*);
 };
 
@@ -116,8 +134,8 @@ struct TNS_pkt_head
 };
 #pragma pack(pop)
 
-int TNS_protocol_parse(uchar *data, uint len);
-int msg_data_id_handle(struct Pkt_handle ph[], int num, uchar type, uchar *data, uint len, void *userdata);
+int TNS_protocol_parse(uchar *data, uint len, void *userdata);
+int msg_data_id_handle(struct Pkt_handle ph[], int num, ushort ver, uchar type, uchar *data, uint len, void *userdata);
 int packet_handle(struct Pkt_handle ph[], int num, uchar type, uchar *data, uint len, void *userdata);
 
 int tns_connect_handle(uchar *pkt, uint len, void *userdata);
@@ -130,5 +148,10 @@ int tns_313_RS(uchar *pkt, uint len, void *userdata);
 int tns_313_OCI(uchar *pkt, uint len, void *userdata);
 int tns_313_SP(uchar *pkt, uint len, void *userdata);
 int tns_313_SNS(uchar *pkt, uint len, void *userdata);
+
+int tns_314_RS(uchar *pkt, uint len, void *userdata);
+int tns_314_OCI(uchar *pkt, uint len, void *userdata);
+int tns_314_SP(uchar *pkt, uint len, void *userdata);
+int tns_314_SNS(uchar *pkt, uint len, void *userdata);
 
 #endif

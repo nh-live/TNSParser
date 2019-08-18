@@ -6,7 +6,7 @@ SRCS    += $(wildcard ./libkdnetwork/*.c)
 SRCS    += $(wildcard ./libprocess/*.c)
 SRCS    += $(wildcard ./libcrypt/*.c)
 OBJS    := $(SRCS:.c=.o) 
-LDFLAGS := -lpthread
+LDFLAGS := -lpthread -lm
 DEFINES := 
 INCLUDE := -I./
 PRILIBS := 

@@ -1,16 +1,9 @@
 #include "util.h"
 
-typedef enum ACTION {
-    DROP        = 1 << 0,
-    TRANSMIT    = 1 << 1,
-    RESPOSE     = 1 << 2,
-}action;
 enum
 {
     RESULT_PUSH,
-    RESULT_TRANSIT,
-    RESULT_DROP,
-    RESULT_WAIT
+    RESULT_DROP
 };
 
 typedef struct Networks {
@@ -59,6 +52,10 @@ typedef struct eth_handle
 {
     int fd;
 }eth_handle;
+
+
+extern uint    g_target_ip;
+extern ushort  g_target_port;
 
 Networks *get_network();
 

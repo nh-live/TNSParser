@@ -25,18 +25,26 @@
 #define TCP_OFFSET(ip)     ((struct tcphdr *)((uchar *)ip + (ip->ihl << 2)))
 #define TCP_DATA(pack)     (((uchar*)pack + ETH_IP_HEAD_LEN + ((struct tcphdr *)((uchar*)pack + ETH_IP_HEAD_LEN))->doff*4))
 
-static void recv_set_pack_info(struct Packet *pkt, int dataLen, int action)
+
+uint    g_target_ip;
+ushort  g_target_port;
+
+static void recv_set_pack_info(struct Packet *pkt, int dataLen, int dir, int action)
 {
     struct iphdr   *ip = IP_OFFSET(pkt->buf);
     struct tcphdr  *tcp = TCP_OFFSET(ip);
     
     pkt->len  = dataLen;
     pkt->data = pkt->buf+ETH_HEAD_LEN + (ip->ihl << 2) + tcp->doff*4;
+    pkt->key.sip = ip->saddr;
+    pkt->key.dip = ip->daddr;
+    pkt->key.sport = tcp->source;
+    pkt->key.dport = tcp->dest;
+    pkt->dir = dir;
     pkt->action = action;
-
 }
 
-static int ip_recv(uchar *pack, int len, int *dataLen)
+static int ip_recv(uchar *pack, int len, int *dataLen, int *dir)
 {
     struct iphdr   *ip = IP_OFFSET(pack);
     struct tcphdr  *tcp;
@@ -49,7 +57,6 @@ static int ip_recv(uchar *pack, int len, int *dataLen)
     if(IPV4 != ip->version)
         return RESULT_DROP;
 
-    
     if (IPPROTO_TCP != ip->protocol)
     {   
         return RESULT_DROP;
@@ -62,16 +69,21 @@ static int ip_recv(uchar *pack, int len, int *dataLen)
 
     *dataLen = tcp_len;
 
-    if (NTOHS(htcp->src_port) == 1521 ||
-        NTOHS(htcp->dst_port) == 1521)
+    if (ip->saddr == g_target_ip && NTOHS(htcp->src_port) == g_target_port)
+    {
+        *dir = RESPONSE;
         return RESULT_PUSH;
-    else
-		;//printf("tcp->port %u -> %u\n",NTOHS(htcp->src_port), NTOHS(htcp->dst_port));
+    }
+    if (ip->daddr == g_target_ip && NTOHS(htcp->dst_port) == g_target_port)
+    {
+        *dir = REQUEST;
+        return RESULT_PUSH;
+    }
     
     return ret;
 }
 
-static int proc_incoming_pack(int fd, uchar *pack, int len, int *dataLen)
+static int proc_incoming_pack(int fd, uchar *pack, int len, int *dataLen, int *dir)
 {
     struct ethhdr *     eth;
     int      eproto;
@@ -83,12 +95,9 @@ static int proc_incoming_pack(int fd, uchar *pack, int len, int *dataLen)
     switch( eproto)
     {
         case ETH_P_IP:
-            ret = ip_recv(pack, len, dataLen);    
+            ret = ip_recv(pack, len, dataLen, dir);    
             break;
-        case ETH_P_ARP:
-            ret = RESULT_DROP;
-            break;
-        case ETH_P_RARP:
+        default :
             ret = RESULT_DROP;
             break;
     }
@@ -129,21 +138,25 @@ int eth_close(void *handler)
 
 int eth_recv(void *handler, struct Packet *pkt)
 {
+    int action;
     int recvLen;
     int dataLen = 0;
+    int dir;
     eth_handle *rcv_fd = (eth_handle *)handler;
-    int ret;
-    int action = 0;
     
     recvLen = recv_via_dev(rcv_fd->fd, pkt->buf, TRY_RECV_LEN);
     if (recvLen < 0)
     {                    
         return 1;
     }
-    action = proc_incoming_pack(rcv_fd->fd, pkt->buf, recvLen, &dataLen);
-    ret = 0;
-    recv_set_pack_info(pkt, dataLen, action);
-    return ret;
+    
+    action = proc_incoming_pack(rcv_fd->fd, pkt->buf, recvLen, &dataLen, &dir);
+    if (action == RESULT_DROP)
+        return 1;
+    
+    recv_set_pack_info(pkt, dataLen, dir, action);
+    
+    return 0;
 }
 
 int eth_send(void *handler, struct Packet *pkt)

@@ -45,11 +45,37 @@ enum {
 #define MAX_PKTPOOL_SIZE    32
 #define MAX_PACKET_SIZE     1500
 
+enum direction {
+    REQUEST     = 0,
+    RESPONSE    = 1,
+};
+    
+struct tcp_hdr {
+    uint16_t src_port;  /**< TCP source port. */
+    uint16_t dst_port;  /**< TCP destination port. */
+    uint32_t sent_seq;  /**< TX data sequence number. */
+    uint32_t recv_ack;  /**< RX data acknowledgement sequence number. */
+    uint8_t  data_off;  /**< Data offset. */
+    uint8_t  tcp_flags; /**< TCP flags */
+    uint16_t rx_win;    /**< RX flow control window. */
+    uint16_t cksum;     /**< TCP checksum. */
+    uint16_t tcp_urp;   /**< TCP urgent pointer, if any. */
+} __attribute__((__packed__));
+
+struct sess_key {
+    uint32_t sip;
+    uint32_t dip;
+    uint16_t sport;
+    uint16_t dport;
+};
+
 typedef struct Packet {
-    uchar buf[MAX_PACKET_SIZE];
-    uchar *data;
-    uint   len;
-    int   action;
+    uchar   buf[MAX_PACKET_SIZE];
+    uchar   *data;                  //pkt head
+    uint    len;                    //pkt len
+    int     dir;                    //pkt direction
+    int     action;
+    struct sess_key key;
 } Packet;
 
 #endif
